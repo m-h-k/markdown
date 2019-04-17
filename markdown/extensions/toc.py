@@ -130,6 +130,9 @@ class TocTreeprocessor(Treeprocessor):
         self.base_level = int(config["baselevel"]) - 1
         self.slugify = config["slugify"]
         self.sep = config["separator"]
+        self.list_type = config["list_type"]
+        self.toc_element = config["toc_element"]
+        self.data_type = config["data_type"]
         self.use_anchors = parseBoolValue(config["anchorlink"])
         self.use_permalinks = parseBoolValue(config["permalink"], False)
         if self.use_permalinks is None:
@@ -198,10 +201,11 @@ class TocTreeprocessor(Treeprocessor):
         permalink.attrib["title"] = "Permanent link"
         c.append(permalink)
 
-    def build_toc_div(self, toc_list):
-        """ Return a string div given a toc list. """
-        div = etree.Element("div")
-        div.attrib["class"] = "toc"
+    def build_toc_element(self, toc_list):
+        """ Return a string element given a toc list. """
+        div = etree.Element(self.toc_element)
+        if self.data_type:
+            div.attrib["data-type"] = self.data_type
 
         # Add title to the div
         if self.title:
@@ -209,19 +213,19 @@ class TocTreeprocessor(Treeprocessor):
             header.attrib["class"] = "toctitle"
             header.text = self.title
 
-        def build_etree_ul(toc_list, parent):
-            ul = etree.SubElement(parent, "ul")
+        def build_etree_list(toc_list, parent):
+            list = etree.SubElement(parent, self.list_type)
             for item in toc_list:
                 # List item link, to be inserted into the toc div
-                li = etree.SubElement(ul, "li")
+                li = etree.SubElement(list, "li")
                 link = etree.SubElement(li, "a")
                 link.text = item.get('name', '')
                 link.attrib["href"] = '#' + item.get('id', '')
                 if item['children']:
-                    build_etree_ul(item['children'], li)
-            return ul
+                    build_etree_list(item['children'], li)
+            return list
 
-        build_etree_ul(toc_list, div)
+        build_etree_list(toc_list, div)
 
         if 'prettify' in self.md.treeprocessors:
             self.md.treeprocessors['prettify'].run(div)
@@ -264,7 +268,7 @@ class TocTreeprocessor(Treeprocessor):
                     self.add_permalink(el, el.attrib["id"])
 
         toc_tokens = nest_toc_tokens(toc_tokens)
-        div = self.build_toc_div(toc_tokens)
+        div = self.build_toc_element(toc_tokens)
         if self.marker:
             self.replace_marker(doc, div)
 
@@ -286,7 +290,7 @@ class TocExtension(Extension):
                        'Text to find and replace with Table of Contents - '
                        'Set to an empty string to disable. Defaults to "[TOC]"'],
             "title": ["",
-                      "Title to insert into TOC <div> - "
+                      "Title to insert into TOC - "
                       "Defaults to an empty string"],
             "anchorlink": [False,
                            "True if header should be a self link - "
@@ -306,6 +310,15 @@ class TocExtension(Extension):
                           'A string consisting of two digits separated by a hyphen'
                           'in between ("2-5"), define the top (t) and the'
                           'bottom (b) (<ht>..<hb>). Defaults to `6` (bottom).'],
+            "list_type": ["ul",
+                          "list element type to use for the TOC - "
+                          "Defaults to `ul`."],
+            "toc_element": ["div",
+                          "element type to use for the TOC - "
+                          "Defaults to `div`."],
+            "data_type": ["",
+                          "data-type to set on the toc_element - "
+                          "Defaults to ``."],
         }
 
         super(TocExtension, self).__init__(**kwargs)
