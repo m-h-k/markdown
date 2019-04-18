@@ -133,6 +133,10 @@ class TocTreeprocessor(Treeprocessor):
         self.list_type = config["list_type"]
         self.toc_element = config["toc_element"]
         self.data_type = config["data_type"]
+        if parseBoolValue(config["htmlbook"], False):
+            self.list_type = 'ol'
+            self.toc_element = 'nav'
+            self.data_type = 'toc'
         self.use_anchors = parseBoolValue(config["anchorlink"])
         self.use_permalinks = parseBoolValue(config["permalink"], False)
         if self.use_permalinks is None:
@@ -319,6 +323,9 @@ class TocExtension(Extension):
             "data_type": ["",
                           "data-type to set on the toc_element - "
                           "Defaults to ``."],
+            "htmlbook": [False,
+                          "Whether to product HTMLBook compliant html. Sets 'list_type' to 'ol', 'toc_element' to 'nav' and 'data_type' to 'toc' - "
+                          "Defaults to `False`."],
         }
 
         super(TocExtension, self).__init__(**kwargs)
