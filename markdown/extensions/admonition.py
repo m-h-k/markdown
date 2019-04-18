@@ -28,11 +28,22 @@ import re
 class AdmonitionExtension(Extension):
     """ Admonition extension for Python-Markdown. """
 
+    def __init__(self, **kwargs):
+        self.config = {
+            "htmlbook": [False,
+                          "Whether to product HTMLBook compliant html - "
+                          "Defaults to `False`."],
+        }
+
+        super(AdmonitionExtension, self).__init__(**kwargs)
+
     def extendMarkdown(self, md):
         """ Add Admonition to Markdown instance. """
         md.registerExtension(self)
 
-        md.parser.blockprocessors.register(AdmonitionProcessor(md.parser), 'admonition', 105)
+        processor = AdmonitionProcessor(md.parser, self.getConfigs())
+
+        md.parser.blockprocessors.register(processor, 'admonition', 105)
 
 
 class AdmonitionProcessor(BlockProcessor):
@@ -41,6 +52,11 @@ class AdmonitionProcessor(BlockProcessor):
     CLASSNAME_TITLE = 'admonition-title'
     RE = re.compile(r'(?:^|\n)!!! ?([\w\-]+(?: +[\w\-]+)*)(?: +"(.*?)")? *(?:\n|$)')
     RE_SPACES = re.compile('  +')
+
+    def __init__(self, md, config):
+        super(AdmonitionProcessor, self).__init__(md)
+
+        self.htmlbook = config["htmlbook"]
 
     def test(self, parent, block):
         sibling = self.lastChild(parent)
@@ -61,11 +77,19 @@ class AdmonitionProcessor(BlockProcessor):
         if m:
             klass, title = self.get_class_and_title(m)
             div = etree.SubElement(parent, 'div')
-            div.set('class', '%s %s' % (self.CLASSNAME, klass))
-            if title:
-                p = etree.SubElement(div, 'p')
-                p.text = title
-                p.set('class', self.CLASSNAME_TITLE)
+            if self.htmlbook:
+                if not klass in ['note', 'warning', 'tip', 'caution', 'important']:
+                    klass = 'note'
+                div.set('data-type', '%s' % (klass))
+                if title:
+                    p = etree.SubElement(div, 'h1')
+                    p.text = title
+            else:
+                div.set('class', '%s %s' % (self.CLASSNAME, klass))
+                if title:
+                    p = etree.SubElement(div, 'p')
+                    p.text = title
+                    p.set('class', self.CLASSNAME_TITLE)
         else:
             div = sibling
 
