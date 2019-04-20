@@ -2,9 +2,9 @@
 Admonition extension for Python-Markdown
 ========================================
 
-Adds rST-style admonitions. Inspired by [rST][] feature with the same name.
+Adds rST-style HTMLBOOK_ADMONITIONS. Inspired by [rST][] feature with the same name.
 
-[rST]: http://docutils.sourceforge.net/docs/ref/rst/directives.html#specific-admonitions  # noqa
+[rST]: http://docutils.sourceforge.net/docs/ref/rst/directives.html#specific-HTMLBOOK_ADMONITIONS  # noqa
 
 See <https://Python-Markdown.github.io/extensions/admonition>
 for documentation.
@@ -24,6 +24,8 @@ from ..blockprocessors import BlockProcessor
 from ..util import etree
 import re
 
+
+HTMLBOOK_ADMONITIONS = ['note', 'warning', 'tip', 'caution', 'important']
 
 class AdmonitionExtension(Extension):
     """ Admonition extension for Python-Markdown. """
@@ -60,9 +62,14 @@ class AdmonitionProcessor(BlockProcessor):
 
     def test(self, parent, block):
         sibling = self.lastChild(parent)
-        return self.RE.search(block) or \
-            (block.startswith(' ' * self.tab_length) and sibling is not None and
-             sibling.get('class', '').find(self.CLASSNAME) != -1)
+        if self.htmlbook:
+            return self.RE.search(block) or \
+                (block.startswith(' ' * self.tab_length) and sibling is not None and
+                sibling.get('data-type', '') in HTMLBOOK_ADMONITIONS)
+        else:
+            return self.RE.search(block) or \
+                (block.startswith(' ' * self.tab_length) and sibling is not None and
+                sibling.get('class', '').find(self.CLASSNAME) != -1)
 
     def run(self, parent, blocks):
         sibling = self.lastChild(parent)
@@ -78,7 +85,7 @@ class AdmonitionProcessor(BlockProcessor):
             klass, title = self.get_class_and_title(m)
             div = etree.SubElement(parent, 'div')
             if self.htmlbook:
-                if not klass in ['note', 'warning', 'tip', 'caution', 'important']:
+                if not klass in HTMLBOOK_ADMONITIONS:
                     klass = 'note'
                 div.set('data-type', klass)
                 if title:
