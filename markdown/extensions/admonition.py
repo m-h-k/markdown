@@ -80,7 +80,7 @@ class AdmonitionProcessor(BlockProcessor):
             if self.htmlbook:
                 if not klass in ['note', 'warning', 'tip', 'caution', 'important']:
                     klass = 'note'
-                div.set('data-type', '%s' % (klass))
+                div.set('data-type', klass)
                 if title:
                     p = etree.SubElement(div, 'h1')
                     p.text = title
