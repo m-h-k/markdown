@@ -20,6 +20,7 @@ from ..treeprocessors import Treeprocessor
 from ..util import etree, parseBoolValue, AMP_SUBSTITUTE, HTML_PLACEHOLDER_RE, string_type
 import re
 import unicodedata
+import copy
 
 
 def slugify(value, separator):
@@ -133,7 +134,8 @@ class TocTreeprocessor(Treeprocessor):
         self.list_type = config["list_type"]
         self.toc_element = config["toc_element"]
         self.data_type = config["data_type"]
-        if parseBoolValue(config["htmlbook"], False):
+        self.htmlbook = parseBoolValue(config["htmlbook"], False)
+        if self.htmlbook:
             self.list_type = 'ol'
             self.toc_element = 'nav'
             self.data_type = 'toc'
@@ -155,7 +157,7 @@ class TocTreeprocessor(Treeprocessor):
         # would causes an enless loop of placing a new TOC
         # inside previously generated TOC.
         for child in node:
-            if not self.header_rgx.match(child.tag) and child.tag not in ['pre', 'code']:
+            if not self.header_rgx.match(child.tag) and child.tag not in ['pre', 'code', 'blockquote']:
                 yield node, child
                 for p, c in self.iterparent(child):
                     yield p, c
@@ -237,6 +239,15 @@ class TocTreeprocessor(Treeprocessor):
         return div
 
     def run(self, doc):
+        if self.htmlbook:
+            # create a copy of the tree
+            mydoc = copy.deepcopy(doc)
+            # remove elements that should be ignored
+            for el in mydoc.iterfind('blockquote'):
+                mydoc.remove(el)
+        else:
+            mydoc = doc
+
         # Get a list of id attributes
         used_ids = set()
         for el in doc.iter():
@@ -244,7 +255,7 @@ class TocTreeprocessor(Treeprocessor):
                 used_ids.add(el.attrib["id"])
 
         toc_tokens = []
-        for el in doc.iter():
+        for el in mydoc.iter():
             if isinstance(el.tag, string_type) and self.header_rgx.match(el.tag):
                 self.set_level(el)
                 if int(el.tag[-1]) < self.toc_top or int(el.tag[-1]) > self.toc_bottom:
