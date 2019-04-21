@@ -251,7 +251,6 @@ class TocTreeprocessor(Treeprocessor):
         def visit_children(element):
 
             for el in element.iterfind('*'):
-                print("Visiting:", el.tag)
                 if isinstance(el.tag, string_type) and self.header_rgx.match(el.tag):
                     self.set_level(el)
                     if int(el.tag[-1]) < self.toc_top or int(el.tag[-1]) > self.toc_bottom:
