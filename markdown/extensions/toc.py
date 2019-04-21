@@ -31,7 +31,7 @@ def slugify(value, separator):
 
 
 IDCOUNT_RE = re.compile(r'^(.*)_([0-9]+)$')
-
+SKIPPED_TAGS = ['pre', 'code', 'blockquote']
 
 def unique(id, ids):
     """ Ensure id is unique in set of ids. Append '_1', '_2'... if not """
@@ -157,7 +157,7 @@ class TocTreeprocessor(Treeprocessor):
         # would causes an enless loop of placing a new TOC
         # inside previously generated TOC.
         for child in node:
-            if not self.header_rgx.match(child.tag) and child.tag not in ['pre', 'code', 'blockquote']:
+            if not self.header_rgx.match(child.tag) and child.tag not in SKIPPED_TAGS:
                 yield node, child
                 for p, c in self.iterparent(child):
                     yield p, c
@@ -239,14 +239,6 @@ class TocTreeprocessor(Treeprocessor):
         return div
 
     def run(self, doc):
-        if self.htmlbook:
-            # create a copy of the tree
-            mydoc = copy.deepcopy(doc)
-            # remove elements that should be ignored
-            for el in mydoc.iterfind('blockquote'):
-                mydoc.remove(el)
-        else:
-            mydoc = doc
 
         # Get a list of id attributes
         used_ids = set()
@@ -255,32 +247,41 @@ class TocTreeprocessor(Treeprocessor):
                 used_ids.add(el.attrib["id"])
 
         toc_tokens = []
-        for el in mydoc.iter():
-            if isinstance(el.tag, string_type) and self.header_rgx.match(el.tag):
-                self.set_level(el)
-                if int(el.tag[-1]) < self.toc_top or int(el.tag[-1]) > self.toc_bottom:
-                    continue
-                text = ''.join(el.itertext()).strip()
 
-                # Do not override pre-existing ids
-                if "id" not in el.attrib:
-                    innertext = stashedHTML2text(text, self.md)
-                    el.attrib["id"] = unique(self.slugify(innertext, self.sep), used_ids)
+        def visit_children(element):
 
-                toc_tokens.append({
-                    'level': int(el.tag[-1]),
-                    'id': el.attrib["id"],
-                    'name': el.attrib.get('data-toc-label', text)
-                })
+            for el in element.iterfind('*'):
+                print("Visiting:", el.tag)
+                if isinstance(el.tag, string_type) and self.header_rgx.match(el.tag):
+                    self.set_level(el)
+                    if int(el.tag[-1]) < self.toc_top or int(el.tag[-1]) > self.toc_bottom:
+                        continue
+                    text = ''.join(el.itertext()).strip()
 
-                # Remove the data-toc-label attribute as it is no longer needed
-                if 'data-toc-label' in el.attrib:
-                    del el.attrib['data-toc-label']
+                    # Do not override pre-existing ids
+                    if "id" not in el.attrib:
+                        innertext = stashedHTML2text(text, self.md)
+                        el.attrib["id"] = unique(self.slugify(innertext, self.sep), used_ids)
 
-                if self.use_anchors:
-                    self.add_anchor(el, el.attrib["id"])
-                if self.use_permalinks:
-                    self.add_permalink(el, el.attrib["id"])
+                    toc_tokens.append({
+                        'level': int(el.tag[-1]),
+                        'id': el.attrib["id"],
+                        'name': el.attrib.get('data-toc-label', text)
+                    })
+
+                    # Remove the data-toc-label attribute as it is no longer needed
+                    if 'data-toc-label' in el.attrib:
+                        del el.attrib['data-toc-label']
+
+                    if self.use_anchors:
+                        self.add_anchor(el, el.attrib["id"])
+                    if self.use_permalinks:
+                        self.add_permalink(el, el.attrib["id"])
+
+                if el.tag not in SKIPPED_TAGS:
+                    visit_children(el)
+
+        visit_children(doc)
 
         toc_tokens = nest_toc_tokens(toc_tokens)
         div = self.build_toc_element(toc_tokens)
