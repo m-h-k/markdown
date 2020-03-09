@@ -214,7 +214,12 @@ class TocTreeprocessor(Treeprocessor):
             div.attrib["data-type"] = self.data_type
 
         # Add title to the div
-        if self.title:
+        if self.htmlbook:
+            header = etree.SubElement(div, "h1")
+            header.text = "Table of Contents"
+            if self.title:
+                header.text = self.title
+        elif self.title:
             header = etree.SubElement(div, "span")
             header.attrib["class"] = "toctitle"
             header.text = self.title
